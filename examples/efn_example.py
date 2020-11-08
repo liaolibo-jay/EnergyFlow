@@ -1,10 +1,3 @@
-"""An example using Energy Flow Networks (EFNs), which were introduced in
-[1810.05165](https://arxiv.org/abs/1810.05165), to classify quark and gluon
-jets. The [`EFN`](../docs/archs/#efn) class is used to construct the network
-architecture. The output of the example is a plot of the ROC curves obtained
-by the EFN as well as the jet mass and constituent multiplicity observables.
-"""
-
 # standard library imports
 from __future__ import absolute_import, division, print_function
 
@@ -17,8 +10,19 @@ from energyflow.archs import EFN
 from energyflow.datasets import qg_jets
 from energyflow.utils import data_split, to_categorical
 
-from sklearn.metrics import roc_auc_score, roc_curve
-import matplotlib.pyplot as plt
+# attempt to import sklearn
+try:
+    from sklearn.metrics import roc_auc_score, roc_curve
+except:
+    print('please install scikit-learn in order to make ROC curves')
+    roc_curve = False
+
+# attempt to import matplotlib
+try:
+    import matplotlib.pyplot as plt
+except:
+    print('please install matploltib in order to make plots')
+    plt = False
 
 ################################### SETTINGS ##################################
 # the commented values correspond to those in 1810.05165
@@ -40,7 +44,7 @@ batch_size = 500
 
 # load data
 X, y = qg_jets.load(train + val + test)
-
+print(X[0,0,:])
 # ignore pid information
 X = X[:,:,:3]
 
@@ -71,73 +75,78 @@ efn = EFN(input_dim=2, Phi_sizes=Phi_sizes, F_sizes=F_sizes)
 
 # train model
 efn.fit([z_train, p_train], Y_train,
-          epochs=num_epoch,
-          batch_size=batch_size,
-          validation_data=([z_val, p_val], Y_val),
-          verbose=1)
+        epochs=num_epoch,
+        batch_size=batch_size,
+        validation_data=([z_val, p_val], Y_val),
+        verbose=1)
 
 # get predictions on test data
 preds = efn.predict([z_test, p_test], batch_size=1000)
 
-# get ROC curve
-efn_fp, efn_tp, threshs = roc_curve(Y_test[:,1], preds[:,1])
+# get ROC curve if we have sklearn
+if roc_curve:
+    efn_fp, efn_tp, threshs = roc_curve(Y_test[:,1], preds[:,1])
 
-# get area under the ROC curve
-auc = roc_auc_score(Y_test[:,1], preds[:,1])
-print()
-print('EFN AUC:', auc)
-print()
+    # get area under the ROC curve
+    auc = roc_auc_score(Y_test[:,1], preds[:,1])
+    print()
+    print('EFN AUC:', auc)
+    print()
 
-# some nicer plot settings 
-plt.rcParams['font.family'] = 'serif'
-plt.rcParams['figure.autolayout'] = True
+    # make ROC curve and filter plot if we have matplotlib
+    if plt:
 
-fig, axes = plt.subplots(1, 2, figsize=(8,4))
+        # some nicer plot settings 
+        plt.rcParams['font.family'] = 'serif'
+        plt.rcParams['figure.autolayout'] = True
 
-######################### ROC Curve Plot #########################
+        fig, axes = plt.subplots(1, 2, figsize=(8,4))
 
-# get multiplicity and mass for comparison
-masses = np.asarray([ef.ms_from_p4s(ef.p4s_from_ptyphims(x).sum(axis=0)) for x in X])
-mults = np.asarray([np.count_nonzero(x[:,0]) for x in X])
-mass_fp, mass_tp, threshs = roc_curve(Y[:,1], -masses)
-mult_fp, mult_tp, threshs = roc_curve(Y[:,1], -mults)
+        ######################### ROC Curve Plot #########################
 
-# plot the ROC curves
-axes[0].plot(efn_tp, 1-efn_fp, '-', color='black', label='EFN')
-axes[0].plot(mass_tp, 1-mass_fp, '-', color='blue', label='Jet Mass')
-axes[0].plot(mult_tp, 1-mult_fp, '-', color='red', label='Multiplicity')
+        # get multiplicity and mass for comparison
+        masses = np.asarray([ef.ms_from_p4s(ef.p4s_from_ptyphims(x).sum(axis=0)) for x in X])
+        mults = np.asarray([np.count_nonzero(x[:,0]) for x in X])
+        mass_fp, mass_tp, threshs = roc_curve(Y[:,1], -masses)
+        mult_fp, mult_tp, threshs = roc_curve(Y[:,1], -mults)
 
-# axes labels
-axes[0].set_xlabel('Quark Jet Efficiency')
-axes[0].set_ylabel('Gluon Jet Rejection')
+        # plot the ROC curves
+        axes[0].plot(efn_tp, 1-efn_fp, '-', color='black', label='EFN')
+        axes[0].plot(mass_tp, 1-mass_fp, '-', color='blue', label='Jet Mass')
+        axes[0].plot(mult_tp, 1-mult_fp, '-', color='red', label='Multiplicity')
 
-# axes limits
-axes[0].set_xlim(0, 1)
-axes[0].set_ylim(0, 1)
+        # axes labels
+        axes[0].set_xlabel('Quark Jet Efficiency')
+        axes[0].set_ylabel('Gluon Jet Rejection')
 
-# make legend and show plot
-axes[0].legend(loc='lower left', frameon=False)
+        # axes limits
+        axes[0].set_xlim(0, 1)
+        axes[0].set_ylim(0, 1)
 
-######################### Filter Plot #########################
+        # make legend and show plot
+        axes[0].legend(loc='lower left', frameon=False)
 
-# plot settings
-R, n = 0.4, 100
-colors = ['Reds', 'Oranges', 'Greens', 'Blues', 'Purples', 'Greys']
-grads = np.linspace(0.45, 0.55, 4)
+        ######################### Filter Plot #########################
 
-# evaluate filters
-X, Y, Z = efn.eval_filters(R, n=n)
+        # plot settings
+        R, n = 0.4, 100
+        colors = ['Reds', 'Oranges', 'Greens', 'Blues', 'Purples', 'Greys']
+        grads = np.linspace(0.45, 0.55, 4)
 
-# plot filters
-for i,z in enumerate(Z):
-    axes[1].contourf(X, Y, z/np.max(z), grads, cmap=colors[i%len(colors)])
+        # evaluate filters
+        X, Y, Z = efn.eval_filters(R, n=n)
 
-axes[1].set_xticks(np.linspace(-R, R, 5))
-axes[1].set_yticks(np.linspace(-R, R, 5))
-axes[1].set_xticklabels(['-R', '-R/2', '0', 'R/2', 'R'])
-axes[1].set_yticklabels(['-R', '-R/2', '0', 'R/2', 'R'])
-axes[1].set_xlabel('Translated Rapidity y')
-axes[1].set_ylabel('Translated Azimuthal Angle phi')
-axes[1].set_title('Energy Flow Network Latent Space', fontdict={'fontsize': 10})
+        # plot filters
+        for i,z in enumerate(Z):
+            axes[1].contourf(X, Y, z/np.max(z), grads, cmap=colors[i%len(colors)])
 
-plt.show()
+        axes[1].set_xticks(np.linspace(-R, R, 5))
+        axes[1].set_yticks(np.linspace(-R, R, 5))
+        axes[1].set_xticklabels(['-R', '-R/2', '0', 'R/2', 'R'])
+        axes[1].set_yticklabels(['-R', '-R/2', '0', 'R/2', 'R'])
+        axes[1].set_xlabel('Translated Rapidity y')
+        axes[1].set_ylabel('Translated Azimuthal Angle phi')
+        axes[1].set_title('Energy Flow Network Latent Space', fontdict={'fontsize': 10})
+
+        plt.savefig("efn_example.jpg")
+        plt.show()

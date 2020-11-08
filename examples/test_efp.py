@@ -1,3 +1,13 @@
+"""An example involving Energy Flow Polynomials (EFPs) and a linear
+classifier (Fisher's Linear Discriminant by default). First, the 
+[`EFPSet`](../docs/efp/#efpset) class is used to compute the EFPs
+up to the specified `dmax`, the default being `dmax=5`. Then linear
+classifiers are trained for different numbers of EFPs as input, 
+determined by taking all EFPs up to degree `d` with `d` from `1` 
+to `dmax`. The output of the example is a plot of the ROC curves
+for the classifiers with different numbers of EFP inputs.
+"""
+
 # standard library imports
 from __future__ import absolute_import, division, print_function
 
@@ -7,8 +17,8 @@ import numpy as np
 # energyflow imports
 import energyflow as ef
 from energyflow.archs import LinearClassifier
-from energyflow.datasets import qg_jets
 from energyflow.utils import data_split, standardize, to_categorical
+import cepc
 
 # attempt to import sklearn
 try:
@@ -27,29 +37,33 @@ except:
 ################################### SETTINGS ###################################
 
 # data controls
-num_data = 20000
+num_data = 15000
 test_frac = 0.2
 
 # efp parameters
-dmax = 5
-measure = 'hadr'
-beta = 0.5
+dmax = 4
+measure = 'ee'
+beta = 0.2
 
 # plotting
-colors = ['tab:red', 'tab:orange', 'tab:olive', 'tab:green', 'tab:blue']
+colors = ['tab:red', 'tab:orange', 'tab:olive', 'tab:green', 'tab:blue', 'tab:black']
 
 ################################################################################
 
 # load data
-X, y = qg_jets.load(num_data)
+X, y = cepc.load(num_data)
 
-print('Loaded quark and gluon jets')
+print('Loaded b-quark and c-quark jets')
 
 # calculate EFPs
-print('Calculating d <= {} EFPs for {} jets... '.format(dmax, num_data), end='')
-efpset = ef.EFPSet(('d<=', dmax), measure='hadr', beta=beta)
+print('Calculating d <= {} EFPs for {} jets... \n'.format(dmax, num_data), end='')
+efpset = ef.EFPSet(('d<=', dmax), measure='ee', beta=beta)
 masked_X = [x[x[:,0] > 0] for x in X]
+#print(X[0])
+#print(masked_X[0])
 X = efpset.batch_compute(masked_X)
+#print(X[0])
+#print(X[1])
 print('Done')
 
 # train models with different numbers of EFPs as input
@@ -96,8 +110,8 @@ if plt:
                                                 label='LDA: d <= {} EFPs'.format(d))
 
     # axes labels
-    plt.xlabel('Quark Jet Efficiency')
-    plt.ylabel('Gluon Jet Rejection')
+    plt.xlabel('B Quark Jet Efficiency')
+    plt.ylabel('C Quark Jet Rejection')
 
     # axes limits
     plt.xlim(0, 1)
@@ -105,5 +119,5 @@ if plt:
 
     # make legend and show plot
     plt.legend(loc='lower left', frameon=False)
-    plt.savefig("efp_example.jpg")
     plt.show()
+    plt.savefig("cepc.jpg")

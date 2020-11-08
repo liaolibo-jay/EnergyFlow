@@ -3,13 +3,13 @@ from __future__ import absolute_import, division, print_function
 
 # standard numerical library imports
 import numpy as np
-
+import os.path
 # energyflow imports
 import energyflow as ef
 from energyflow.archs import CNN
 from energyflow.datasets import qg_jets
 from energyflow.utils import data_split, pixelate, standardize, to_categorical, zero_center
-
+import cepc # uproot package for cepc
 # attempt to import sklearn
 try:
     from sklearn.metrics import roc_auc_score, roc_curve
@@ -53,7 +53,7 @@ batch_size = 100
 ################################################################################
 
 # load data
-X, y = qg_jets.load(num_data=num_data)
+X, y = cepc.load(num_data=num_data)
 
 # convert labels to categorical
 Y = to_categorical(y, num_classes=2)
@@ -61,8 +61,7 @@ Y = to_categorical(y, num_classes=2)
 print('Loaded quark and gluon jets')
 
 # make jet images
-images = np.asarray([pixelate(x, npix=npix, img_width=img_width, nb_chan=nb_chan, 
-                                 charged_counts_only=True, norm=norm) for x in X])
+images = np.asarray([pixelate(x, npix=npix, img_width=img_width, nb_chan=nb_chan, norm=norm,charged_counts_only=True) for x in X])
 
 print('Done making jet images')
 
@@ -135,5 +134,5 @@ if roc_curve:
 
         # make legend and show plot
         plt.legend(loc='lower left', frameon=False)
-        plt.savefig("cnn_example.jpg")
+        plt.savefig("test_cnn.jpg")
         plt.show()

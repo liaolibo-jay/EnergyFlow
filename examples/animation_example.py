@@ -1,10 +1,3 @@
-"""An example that makes an animation between two events using the EMD. Note
-that `ffmpeg` must be installed in order for matplotlib to be able to render
-the animation. Strange errors may result if there is an issue with the presence
-of required software components.
-"""
-
-# standard library imports
 from __future__ import absolute_import, division, print_function
 
 # standard numerical library imports
@@ -24,12 +17,14 @@ plt.rcParams['figure.figsize'] = (4,4)
 #plt.rcParams['animation.ffmpeg_path'] = 'C:\\ffmpeg\\bin\\ffmpeg.exe'
 
 import energyflow as ef
+from energyflow.emd import ot
 from matplotlib import animation, rc
+from IPython.display import HTML
 
 # helper function to interpolate between the optimal transport of two events
 def merge(ev0, ev1, R=1, lamb=0.5):    
     emd, G = ef.emd.emd(ev0, ev1, R=R, return_flow=True)
-    
+
     merged = []
     for i in range(len(ev0)):
         for j in range(len(ev1)):
@@ -46,7 +41,7 @@ def merge(ev0, ev1, R=1, lamb=0.5):
         for j in range(len(ev1)):
             if G[-1,j] > 0:
                 merged.append([G[-1,j]*(1-lamb), ev1[j,1], ev1[j,2]])            
-            
+
     return np.asarray(merged)
 
 
@@ -95,30 +90,30 @@ scatter = ax.scatter(ys, phis, color='blue', s=pts, lw=0)
 # animation function. This is called sequentially
 def animate(i):
     ax.clear()
-    
+
     nstages = 4
-    
+
     # first phase is a static image of event0
     if i < nframes / nstages:
         lamb = nstages*i/(nframes-1)
         ev0  = event0
         ev1  = event0
         color = (1,0,0)
-    
+
     # second phase is a transition from event0 to event1
     elif i < 2 * nframes / nstages:
         lamb = nstages*(i - nframes/nstages)/(nframes-1)
         ev0  = event1
         ev1  = event0
         color = (1-lamb)*np.asarray([1,0,0]) + (lamb)*np.asarray([0,0,1])
-    
+
     # third phase is a static image of event1
     elif i < 3 * nframes / nstages:
         lamb = nstages*(i - 2*nframes/nstages)/(nframes-1)
         ev0  = event1
         ev1  = event1
         color = (0,0,1)
-    
+
     # fourth phase is a transition from event1 to event0
     else:
         lamb = nstages*(i - 3*nframes/nstages)/(nframes-1)
@@ -129,15 +124,15 @@ def animate(i):
     merged = merge(ev0, ev1, lamb=lamb, R=0.5)
     pts, ys, phis = merged[:,0], merged[:,1], merged[:,2]
     scatter = ax.scatter(ys, phis, color=color, s=zf*pts, lw=0)
-    
+
     ax.set_xlim(-R, R); ax.set_ylim(-R, R);
     ax.set_axis_off()
-    
+
     return scatter,
 
 anim = animation.FuncAnimation(fig, animate, frames=nframes, repeat=True)
 anim.save('energyflowanimation.mp4', fps=fps, dpi=200)
 
-# uncomment these lines if running in a jupyter notebook
-# from IPython.display import HTML
+# uncomment this if running in a jupyter notebook
 # HTML(anim.to_html5_video())
+
